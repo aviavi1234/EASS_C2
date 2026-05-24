@@ -98,6 +98,13 @@ SETTINGS_PAGE_CSS = """
 
 
 import re
+from pathlib import Path
+from nicegui import app, events, ui
+
+# Serve icons locally so remote computers don't need the exact API IP for images
+ICONS_DIR = Path(__file__).resolve().parent.parent.parent / "backend" / "Data" / "poi_icons"
+ICONS_DIR.mkdir(parents=True, exist_ok=True)
+app.add_static_files('/local_icons', str(ICONS_DIR))
 
 def _attach_password_validator(pwd_input, is_admin_check, submit_button_or_callback):
     with ui.column().classes("w-full text-xs mt-1 mb-2 gap-0"):
@@ -806,7 +813,8 @@ def settings_page() -> None:
                                 with ui.row().classes("w-full items-center gap-4 px-4 py-2 c2-settings-card"):
                                     with ui.column().classes("w-16 items-center"):
                                         if row.get("icon_url"):
-                                            ui.image(api_base + row["icon_url"]).classes("w-8 h-8").props("fit=contain")
+                                            filename = row["icon_url"].split("/")[-1]
+                                            ui.image(f"/local_icons/{filename}").classes("w-8 h-8").props("fit=contain")
                                         else:
                                             ui.label("—").classes("text-grey-5")
                                             
@@ -1182,9 +1190,10 @@ def map_page() -> None:
                 
                 label = str(poi.get("poi_type") or "unknowns").strip()
                 trow = type_by.get(label)
-                type_icon = (
-                    base + trow["icon_url"] if trow and trow.get("icon_url") else None
-                )
+                type_icon = None
+                if trow and trow.get("icon_url"):
+                    filename = trow["icon_url"].split("/")[-1]
+                    type_icon = f"/local_icons/{filename}"
                 expr = _leaflet_custom_icon_expr(color, type_icon)
 
                 if poi_id in pois_state["markers"]:
