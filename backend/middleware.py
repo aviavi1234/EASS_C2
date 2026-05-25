@@ -16,6 +16,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._hits: dict[str, list[float]] = defaultdict(list)
 
     async def dispatch(self, request: Request, call_next) -> Response:
+        if request.url.path in ("/health", "/users/me/ping", "/users/me/offline") or request.url.path.endswith("/refresh"):
+            return await call_next(request)
+            
         settings = get_settings()
         client_ip = request.client.host if request.client else "unknown"
         now = time.time()

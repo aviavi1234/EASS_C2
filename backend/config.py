@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     refresh_idempotency_ttl_seconds: int = 3600
 
-    rate_limit_per_minute: int = 60
+    rate_limit_per_minute: int = 600
     service_api_key: str = "dev-service-key"
 
     c2_db_file: str = "c2_database.db"

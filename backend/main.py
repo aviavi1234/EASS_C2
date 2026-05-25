@@ -17,6 +17,7 @@ from backend.auth import (
     hash_password,
     require_admin,
     require_write_access,
+    verify_service_key,
 )
 from backend.database import db
 from backend.middleware import RateLimitMiddleware
@@ -42,13 +43,14 @@ from backend.models import (
 from backend.poi_icons import (
     ALLOWED_ICON_SUFFIXES,
     icons_directory,
+    user_icons_directory,
     safe_icon_basename,
 )
-from backend.seed import (
+from scripts.init.seed import (
     seed_poi_types,
     seed_users,
 )
-from backend.services import build_weekly_digest, compute_priority_score
+from backend.services import build_weekly_digest, compute_priority_score, refresh_poi_priority
 
 def _poi_type_to_public(row: PoiTypeDefinition) -> PoiTypePublic:
     icon_url = None
@@ -58,6 +60,30 @@ def _poi_type_to_public(row: PoiTypeDefinition) -> PoiTypePublic:
         id=row.id,
         label=row.label,
         icon_url=icon_url,
+    )
+
+
+def _user_to_public(user: User) -> UserPublic:
+    unit_icon_url = None
+    if user.unit_icon_filename:
+        unit_icon_url = f"/users/icons/{user.unit_icon_filename}"
+    permission = user.permission
+    if user.role == UserRole.ADMIN:
+        permission = Permission.READ_WRITE
+    return UserPublic(
+        id=user.id,
+        username=user.username,
+        role=user.role,
+        permission=permission,
+        requires_setup=user.requires_setup,
+        unit_name=user.unit_name,
+        unit_type=user.unit_type,
+        unit_description=user.unit_description,
+        unit_icon_url=unit_icon_url,
+        unit_lat=user.unit_lat,
+        unit_lng=user.unit_lng,
+        unit_last_online=user.unit_last_online,
+        show_location=user.show_location,
     )
 
 
@@ -99,13 +125,10 @@ def login(body: LoginRequest, session: Session = Depends(db.get_session)):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     token = create_access_token(user=user)
+    pub = _user_to_public(user)
     return TokenResponse(
         access_token=token,
-        id=user.id,
-        username=user.username,
-        role=user.role,
-        permission=user.permission,
-        requires_setup=user.requires_setup,
+        **pub.model_dump()
     )
 
 
@@ -185,6 +208,27 @@ def delete_poi_type(
     session.commit()
 
 
+@app.delete("/poi-types/{type_id}/icon", response_model=PoiTypePublic)
+def delete_poi_type_icon(
+    type_id: int,
+    session: Session = Depends(db.get_session),
+    _: User = Depends(require_admin),
+):
+    poi_type = session.get(PoiTypeDefinition, type_id)
+    if not poi_type:
+        raise HTTPException(status_code=404, detail="POI type not found")
+
+    if poi_type.icon_filename and safe_icon_basename(poi_type.icon_filename):
+        old = icons_directory() / poi_type.icon_filename
+        if old.is_file():
+            old.unlink()
+
+    poi_type.icon_filename = None
+    session.add(poi_type)
+    session.commit()
+    session.refresh(poi_type)
+    return _poi_type_to_public(poi_type)
+
 @app.get("/poi-types/icons/{filename}")
 def get_poi_type_icon(filename: str):
     if not safe_icon_basename(filename):
@@ -234,16 +278,7 @@ def list_users(
     _: User = Depends(require_admin),
 ):
     users = session.exec(select(User)).all()
-    return [
-        UserPublic(
-            id=u.id,
-            username=u.username,
-            role=u.role,
-            permission=u.permission,
-            requires_setup=u.requires_setup,
-        )
-        for u in users
-    ]
+    return [_user_to_public(u) for u in users]
 
 
 @app.post("/users/", response_model=UserPublic, status_code=201)
@@ -268,13 +303,7 @@ def create_user(
     session.add(user)
     session.commit()
     session.refresh(user)
-    return UserPublic(
-        id=user.id,
-        username=user.username,
-        role=user.role,
-        permission=user.permission,
-        requires_setup=user.requires_setup,
-    )
+    return _user_to_public(user)
 
 
 @app.patch("/users/{user_id}", response_model=UserPublic)
@@ -309,16 +338,25 @@ def update_user(
     if body.requires_setup is not None:
         user.requires_setup = body.requires_setup
 
+    if body.unit_name is not None:
+        user.unit_name = body.unit_name
+    if body.unit_type is not None:
+        user.unit_type = body.unit_type
+    if body.unit_description is not None:
+        user.unit_description = body.unit_description
+    if body.unit_lat is not None:
+        user.unit_lat = body.unit_lat
+    if body.unit_lng is not None:
+        user.unit_lng = body.unit_lng
+    if body.unit_last_online is not None:
+        user.unit_last_online = body.unit_last_online
+    if body.show_location is not None:
+        user.show_location = body.show_location
+
     session.add(user)
     session.commit()
     session.refresh(user)
-    return UserPublic(
-        id=user.id,
-        username=user.username,
-        role=user.role,
-        permission=user.permission,
-        requires_setup=user.requires_setup,
-    )
+    return _user_to_public(user)
 
 
 @app.delete("/users/{user_id}", status_code=204)
@@ -388,11 +426,23 @@ def weekly_digest(
     return build_weekly_digest(session)
 
 
+@app.post("/pois/{poi_id}/refresh", response_model=PointOfInterestRead)
+def refresh_poi_endpoint(
+    poi_id: int,
+    session: Session = Depends(db.get_session),
+    _: None = Depends(verify_service_key),
+):
+    poi = refresh_poi_priority(session, poi_id)
+    if not poi:
+        raise HTTPException(status_code=404, detail="Point of Interest not found")
+    return _poi_to_read(session, poi, None)
+
+
 @app.get("/pois/{poi_id}", response_model=PointOfInterestRead)
 def read_poi(
     poi_id: int,
     session: Session = Depends(db.get_session),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     poi = session.get(PointOfInterest, poi_id)
     if not poi:
@@ -448,3 +498,117 @@ def delete_poi(
         )
     session.delete(poi)
     session.commit()
+
+
+@app.post("/users/me/ping")
+def ping_user(
+    session: Session = Depends(db.get_session),
+    current_user: User = Depends(get_current_user),
+):
+    current_user.unit_last_online = datetime.now(timezone.utc)
+    session.add(current_user)
+    session.commit()
+    return {"status": "ok"}
+
+
+@app.post("/users/me/offline")
+def go_offline(
+    session: Session = Depends(db.get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Clear online presence so the unit disappears from the map immediately on logout."""
+    current_user.unit_last_online = None
+    session.add(current_user)
+    session.commit()
+    return {"status": "ok"}
+
+@app.get("/units/", response_model=List[UserPublic])
+def list_active_units(
+    session: Session = Depends(db.get_session),
+    _: User = Depends(get_current_user),
+):
+    from datetime import timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=90)
+    users = session.exec(
+        select(User)
+        .where(User.show_location == True)
+        .where(User.unit_last_online != None)
+        .where(User.unit_last_online >= cutoff)
+    ).all()
+    return [_user_to_public(u) for u in users]
+
+
+@app.post("/users/{user_id}/icon", response_model=UserPublic)
+async def upload_user_unit_icon(
+    user_id: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(db.get_session),
+    current_user: User = Depends(get_current_user),
+):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if current_user.role != UserRole.ADMIN and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to modify this user")
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in ALLOWED_ICON_SUFFIXES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported image type. Allowed: {', '.join(sorted(ALLOWED_ICON_SUFFIXES))}",
+        )
+    new_name = f"user_{user_id}_{uuid.uuid4().hex}{suffix}"
+    dest = user_icons_directory() / new_name
+    data = await file.read()
+    if len(data) > 2_000_000:
+        raise HTTPException(status_code=400, detail="File too large (max 2 MB)")
+    dest.write_bytes(data)
+    
+    if user.unit_icon_filename and safe_icon_basename(user.unit_icon_filename):
+        old = user_icons_directory() / user.unit_icon_filename
+        if old.is_file() and old.name != new_name:
+            old.unlink()
+            
+    user.unit_icon_filename = new_name
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return _user_to_public(user)
+
+
+@app.delete("/users/{user_id}/icon", response_model=UserPublic)
+def delete_user_unit_icon(
+    user_id: int,
+    session: Session = Depends(db.get_session),
+    current_user: User = Depends(get_current_user),
+):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if current_user.role != UserRole.ADMIN and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to modify this user")
+
+    if user.unit_icon_filename and safe_icon_basename(user.unit_icon_filename):
+        old = user_icons_directory() / user.unit_icon_filename
+        if old.is_file():
+            old.unlink()
+            
+    user.unit_icon_filename = None
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return _user_to_public(user)
+
+@app.get("/users/icons/{filename}")
+def get_user_unit_icon(filename: str):
+    if not safe_icon_basename(filename):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    path = user_icons_directory() / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Icon not found")
+    return FileResponse(path)

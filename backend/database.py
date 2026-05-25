@@ -1,17 +1,18 @@
 import os
 from pathlib import Path
+
 from sqlmodel import SQLModel, Session, create_engine
+
+from backend.paths import DEFAULT_DB_FILE, ensure_data_dirs
 
 
 class DatabaseManager:
-    def __init__(self, file_name: str):
-        base_dir = Path(__file__).resolve().parent
-        data_dir = base_dir / "Data"
-        data_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, file_name: str | Path):
+        ensure_data_dirs()
 
         db_path = Path(file_name)
-        if not db_path.is_absolute() and db_path.parent == Path("."):
-            db_path = data_dir / file_name
+        if not db_path.is_absolute():
+            db_path = DEFAULT_DB_FILE.parent / db_path
 
         self.file_name = str(db_path)
         sqlite_url = f"sqlite:///{self.file_name}"
@@ -27,5 +28,5 @@ class DatabaseManager:
             yield session
 
 
-DB_FILENAME = os.getenv("C2_DB_FILE", "c2_database.db")
+DB_FILENAME = os.getenv("C2_DB_FILE", str(DEFAULT_DB_FILE))
 db = DatabaseManager(DB_FILENAME)

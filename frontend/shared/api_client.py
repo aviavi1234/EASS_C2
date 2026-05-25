@@ -31,6 +31,27 @@ class C2Client:
         self.token = data["access_token"]
         return data
 
+    def ping(self) -> dict[str, Any]:
+        response = httpx.post(
+            f"{self.api_base}/users/me/ping",
+            headers=self._headers(),
+            timeout=5,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def go_offline(self) -> None:
+        if not self.token:
+            return
+        try:
+            httpx.post(
+                f"{self.api_base}/users/me/offline",
+                headers=self._headers(),
+                timeout=5,
+            ).raise_for_status()
+        except httpx.HTTPError:
+            pass
+
     def get_health(self) -> dict[str, Any]:
         response = httpx.get(f"{self.api_base}/health", timeout=5)
         response.raise_for_status()
@@ -143,12 +164,50 @@ class C2Client:
         )
         response.raise_for_status()
 
+    def delete_poi_type_icon(self, type_id: int) -> dict[str, Any]:
+        response = httpx.delete(
+            f"{self.api_base}/poi-types/{type_id}/icon",
+            headers=self._headers(),
+            timeout=10,
+        )
+        response.raise_for_status()
+        return response.json()
+
     def upload_poi_type_icon(
         self, type_id: int, content: bytes, filename: str
     ) -> dict[str, Any]:
         files = {"file": (filename, content)}
         response = httpx.post(
             f"{self.api_base}/poi-types/{type_id}/icon",
+            headers=self._headers(),
+            files=files,
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def fetch_units(self) -> list[dict[str, Any]]:
+        response = httpx.get(
+            f"{self.api_base}/units/", headers=self._headers(), timeout=10
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def delete_user_icon(self, user_id: int) -> dict[str, Any]:
+        response = httpx.delete(
+            f"{self.api_base}/users/{user_id}/icon",
+            headers=self._headers(),
+            timeout=10,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def upload_user_icon(
+        self, user_id: int, content: bytes, filename: str
+    ) -> dict[str, Any]:
+        files = {"file": (filename, content)}
+        response = httpx.post(
+            f"{self.api_base}/users/{user_id}/icon",
             headers=self._headers(),
             files=files,
             timeout=30,

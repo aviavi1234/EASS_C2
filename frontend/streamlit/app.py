@@ -5,7 +5,7 @@ from io import StringIO
 import httpx
 import streamlit as st
 
-from frontend.api_client import DEFAULT_API_BASE, C2Client
+from frontend.shared.api_client import DEFAULT_API_BASE, C2Client
 
 POI_TYPES = ["unknowns", "infentry", "tank"]
 

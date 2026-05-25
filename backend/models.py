@@ -22,6 +22,16 @@ class User(SQLModel, table=True):
     role: UserRole = Field(default=UserRole.USER)
     permission: Optional[Permission] = Field(default=Permission.READ_ONLY)
     requires_setup: bool = Field(default=False)
+    
+    # Unit settings
+    unit_name: Optional[str] = Field(default=None)
+    unit_type: Optional[str] = Field(default=None)
+    unit_description: Optional[str] = Field(default=None)
+    unit_icon_filename: Optional[str] = Field(default=None, max_length=256)
+    unit_lat: Optional[float] = Field(default=None)
+    unit_lng: Optional[float] = Field(default=None)
+    unit_last_online: Optional[datetime] = Field(default=None)
+    show_location: bool = Field(default=False)
 
 
 class UserCreate(SQLModel):
@@ -36,6 +46,13 @@ class UserUpdate(SQLModel):
     permission: Optional[Permission] = None
     password: Optional[str] = None
     requires_setup: Optional[bool] = None
+    unit_name: Optional[str] = None
+    unit_type: Optional[str] = None
+    unit_description: Optional[str] = None
+    unit_lat: Optional[float] = None
+    unit_lng: Optional[float] = None
+    unit_last_online: Optional[datetime] = None
+    show_location: Optional[bool] = None
 
 
 class UserPublic(SQLModel):
@@ -44,6 +61,14 @@ class UserPublic(SQLModel):
     role: UserRole
     permission: Optional[Permission] = None
     requires_setup: bool = False
+    unit_name: Optional[str] = None
+    unit_type: Optional[str] = None
+    unit_description: Optional[str] = None
+    unit_icon_url: Optional[str] = None
+    unit_lat: Optional[float] = None
+    unit_lng: Optional[float] = None
+    unit_last_online: Optional[datetime] = None
+    show_location: bool = False
 
 
 class LoginRequest(SQLModel):
@@ -59,6 +84,14 @@ class TokenResponse(SQLModel):
     role: UserRole
     permission: Optional[Permission] = None
     requires_setup: bool = False
+    unit_name: Optional[str] = None
+    unit_type: Optional[str] = None
+    unit_description: Optional[str] = None
+    unit_icon_url: Optional[str] = None
+    unit_lat: Optional[float] = None
+    unit_lng: Optional[float] = None
+    unit_last_online: Optional[datetime] = None
+    show_location: bool = False
 
 
 class PoiTypeDefinition(SQLModel, table=True):

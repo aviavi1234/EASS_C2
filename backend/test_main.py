@@ -1,43 +1,18 @@
-from pathlib import Path
-
-import pytest
 from fastapi.testclient import TestClient
 
-from backend.database import db  # noqa: E402
-from backend.main import app  # noqa: E402
+from backend.conftest import auth_headers, create_poi
 
 
-@pytest.fixture(name="client")
-def client_fixture():
-    test_db_path = Path(db.file_name)
-    if test_db_path.exists():
-        test_db_path.unlink()
-    with TestClient(app) as client:
-        yield client
-
-    db.engine.dispose()
-    if test_db_path.exists():
-        test_db_path.unlink()
-
-
-def _auth_headers(client: TestClient) -> dict:
-    response = client.post(
-        "/auth/token", json={"username": "admin", "password": "admin1234"}
-    )
-    token = response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
-
-
-def test_create_poi(client: TestClient):
+def test_create_poi(client: TestClient, admin_headers):
     response = client.post(
         "/pois/",
-        headers=_auth_headers(client),
-            json={
-                "latitude": 32.0853,
-                "longitude": 34.7818,
-                "poi_type": "Tank",
-                "description": "Hostile spotted",
-            },
+        headers=admin_headers,
+        json={
+            "latitude": 32.0853,
+            "longitude": 34.7818,
+            "poi_type": "Tank",
+            "description": "Hostile spotted",
+        },
     )
 
     assert response.status_code == 201
@@ -48,47 +23,34 @@ def test_create_poi(client: TestClient):
     assert "id" in data
 
 
-def test_read_pois_requires_auth(client: TestClient):
+def test_read_pois_requires_auth(client: TestClient, admin_headers):
     assert client.get("/pois/").status_code == 401
 
-    headers = _auth_headers(client)
-    client.post(
-        "/pois/", headers=headers, json={"latitude": 10.0, "longitude": 20.0}
-    )
-    client.post(
-        "/pois/", headers=headers, json={"latitude": 11.0, "longitude": 21.0}
-    )
+    create_poi(client, admin_headers, latitude=10.0, longitude=20.0)
+    create_poi(client, admin_headers, latitude=11.0, longitude=21.0)
 
-    response = client.get("/pois/", headers=headers)
+    response = client.get("/pois/", headers=admin_headers)
     assert response.status_code == 200
     assert len(response.json()) == 2
 
 
-def test_update_poi(client: TestClient):
-    headers = _auth_headers(client)
-    create_response = client.post(
-        "/pois/",
-        headers=headers,
-        json={"latitude": 0.0, "longitude": 0.0},
-    )
-    poi_id = create_response.json()["id"]
+def test_update_poi(client: TestClient, admin_headers):
+    poi = create_poi(client, admin_headers, latitude=0.0, longitude=0.0)
+    poi_id = poi["id"]
 
     update_response = client.patch(
-        f"/pois/{poi_id}", headers=headers, json={"description": "destroyed"}
+        f"/pois/{poi_id}", headers=admin_headers, json={"description": "destroyed"}
     )
     assert update_response.status_code == 200
     assert update_response.json()["description"] == "destroyed"
 
 
-def test_delete_poi(client: TestClient):
-    headers = _auth_headers(client)
-    create_response = client.post(
-        "/pois/", headers=headers, json={"latitude": 0.0, "longitude": 0.0}
-    )
-    poi_id = create_response.json()["id"]
+def test_delete_poi(client: TestClient, admin_headers):
+    poi = create_poi(client, admin_headers, latitude=0.0, longitude=0.0)
+    poi_id = poi["id"]
 
-    delete_response = client.delete(f"/pois/{poi_id}", headers=headers)
+    delete_response = client.delete(f"/pois/{poi_id}", headers=admin_headers)
     assert delete_response.status_code == 204
 
-    read_response = client.get(f"/pois/{poi_id}", headers=headers)
+    read_response = client.get(f"/pois/{poi_id}", headers=admin_headers)
     assert read_response.status_code == 404

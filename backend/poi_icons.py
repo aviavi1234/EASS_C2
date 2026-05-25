@@ -3,13 +3,19 @@
 import re
 from pathlib import Path
 
+from backend.paths import POI_ICONS_DIR, USER_ICONS_DIR, ensure_data_dirs
+
 ALLOWED_ICON_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 
 def icons_directory() -> Path:
-    base = Path(__file__).resolve().parent / "Data" / "poi_icons"
-    base.mkdir(parents=True, exist_ok=True)
-    return base
+    ensure_data_dirs()
+    return POI_ICONS_DIR
+
+
+def user_icons_directory() -> Path:
+    ensure_data_dirs()
+    return USER_ICONS_DIR
 
 
 def safe_icon_basename(name: str) -> bool:

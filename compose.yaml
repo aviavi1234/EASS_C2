@@ -7,27 +7,29 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: deploy/Dockerfile
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     environment:
       - REDIS_URL=redis://redis:6379/0
-      - C2_DB_FILE=Data/c2_database.db
+      - C2_DATA_DIR=/app/data
+      - C2_DB_FILE=/app/data/database/c2_database.db
+      - SERVICE_API_KEY=dev-service-key
     depends_on:
       - redis
     volumes:
-      - ./backend/Data:/app/backend/Data
+      - ./data:/app/data
 
   worker:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: deploy/Dockerfile
     command: python -m worker.main
     environment:
       - REDIS_URL=redis://redis:6379/0
       - API_BASE_URL=http://api:8000
-      - SERVICE_API_KEY=local-dev-service-key
+      - SERVICE_API_KEY=dev-service-key
     depends_on:
       - api
       - redis

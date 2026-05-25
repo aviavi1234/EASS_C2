@@ -1,4 +1,45 @@
-venv
-.idea
-__pycache__
-backend/Data/*
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+
+# Runtime data (database, uploads, generated certs)
+data/*
+!data/.gitkeep
+
+# Legacy runtime paths
+backend/Data/
+
+# SQLite databases (outside tracked data/ layout)
+*.db
+*.sqlite
+*.sqlite3
+
+# Local HTTPS certificates
+*.pem
+
+# NiceGUI browser session storage
+.nicegui/
+
+# Test / cache
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Logs
+*.log

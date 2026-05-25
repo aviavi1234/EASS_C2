@@ -1,13 +1,10 @@
+"""Database seeding for first-time setup."""
+
 from sqlmodel import Session, select
 
 from backend.auth import hash_password
 from backend.database import db
-from backend.models import (
-    Permission,
-    PoiTypeDefinition,
-    User,
-    UserRole,
-)
+from backend.models import PoiTypeDefinition, User, UserRole
 
 DEFAULT_USERS = [
     ("admin", "admin1234", UserRole.ADMIN, None),
@@ -25,7 +22,7 @@ def seed_users(session: Session) -> None:
         existing = session.exec(select(User).where(User.username == username)).first()
         if existing:
             continue
-        requires_setup = True if username == "admin" else False
+        requires_setup = username == "admin"
         session.add(
             User(
                 username=username,
@@ -47,9 +44,7 @@ def seed_poi_types(session: Session) -> None:
         ).first()
         if existing:
             continue
-        session.add(
-            PoiTypeDefinition(label=label)
-        )
+        session.add(PoiTypeDefinition(label=label))
     session.commit()
 
 
