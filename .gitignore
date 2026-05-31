@@ -18,6 +18,7 @@ Thumbs.db
 .env.*
 
 # Runtime data (database, uploads, generated certs)
+data/
 data/*
 !data/.gitkeep
 
