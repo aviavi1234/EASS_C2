@@ -11,7 +11,7 @@ This repository is a **computer-science course project** that follows an assignm
 | -------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | **EX1**  | FastAPI backend, SQLite, pytest           | `backend/`, `scripts/init/seed.py`, `backend/test_*.py`                                          |
 | **EX2**  | Streamlit dashboard                       | `frontend/streamlit/app.py`                                                                      |
-| **EX3**  | Compose, Redis worker, JWT, async refresh | `compose.yaml`, `worker/`, `scripts/refresh.py`, `docs/EX3-notes.md`, `docs/runbooks/compose.md` |
+| **EX3**  | Compose, Redis worker, JWT, async refresh | `compose.yaml`, `worker/`, `scripts/refresh.py`, `docs/EX3-notes.md`, `docs/compose.md` |
 
 
 NiceGUI map UI (`frontend/nicegui/`) and demo scripts (`scripts/demo.py`, `app/demo.py`) are EX3 enhancements.
@@ -34,8 +34,10 @@ scripts/
   demo.sh                Shell wrapper for demo
 deploy/                  Dockerfile (used by compose)
 docs/
+  full-GUI-user-guide.md Screen-by-screen UI guide (with screenshots)
   EX3-notes.md           Architecture, security, refresh trace
-  runbooks/compose.md    Docker Compose runbook
+  compose.md             Docker Compose runbook
+  images/                UI screenshots
 data/                    Runtime data (SQLite DB, icons, certs) — not committed
 requirements/            Split dependency files by component
 compose.yaml             Local API + Redis + worker stack
@@ -76,16 +78,10 @@ The examples below use the venv Python from the table above.
 ```bash
 # Windows
 python -m venv venv
-
-# Linux / macOS
-python3 -m venv venv
-```
-
-```bash
-# Windows
 venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements/dev.txt
 
 # Linux / macOS
+python3 -m venv venv
 venv/bin/python -m pip install -r requirements.txt -r requirements/dev.txt
 ```
 
@@ -142,42 +138,48 @@ venv\Scripts\python.exe -m frontend.nicegui.main
 venv/bin/python -m frontend.nicegui.main
 ```
 
-Opens at [http://127.0.0.1:8081](http://127.0.0.1:8081).
+Opens at [http://127.0.0.1:8081](http://127.0.0.1:8081). In **Settings → Unit location**, choose **Auto** to use GPS.
 
-> **Troubleshooting**
->
-> **Port 8081 already in use**
+**Troubleshooting**:
+
+> **• Port 8081 already in use** — pick any free port with `--port` (example uses `8090`; use whatever you like):
 >
 > ```bash
-> # Windows
+> # Windows — replace 8090 with your port
 > venv\Scripts\python.exe -m frontend.nicegui.main --port 8090
 >
-> # Linux / macOS
+> # Linux / macOS — replace 8090 with your port
 > venv/bin/python -m frontend.nicegui.main --port 8090
 > ```
 >
-> Opens at [http://127.0.0.1:8090](http://127.0.0.1:8090).
+> Opens at `http://127.0.0.1:<your-port>` (example: [http://127.0.0.1:8090](http://127.0.0.1:8090)).
 >
-> **GPS from your phone** (same Wi‑Fi — only `--https` on the map, not `--host` on the backend)
->
-> The map GUI runs on your PC and talks to the API from **Python on the PC** (`httpx` → `127.0.0.1:8000`). Your phone only loads the UI and runs GPS in the browser. So the normal backend command from step 2 is enough; `**--https` on the map** is what unlocks GPS on the phone (browsers require a secure context off localhost).
+> **• Enable GPS location** — GPS in the browser requires **HTTPS** when the map is opened over your LAN (e.g. from a phone at `https://YOUR_PC_IP:…`). Start the map with `**--https`** to enable it.
+> `--port` is optional (as explained above, example `8090`):
 >
 > ```bash
-> # Windows
+> # Windows — replace 8090 with your port, or omit --port to use the default
 > venv\Scripts\python.exe -m frontend.nicegui.main --https --port 8090
-> # Linux / macOS
+>
+> # Linux / macOS — replace 8090 with your port, or omit --port to use the default
 > venv/bin/python -m frontend.nicegui.main --https --port 8090
 > ```
 >
-> On your phone (same Wi‑Fi as the PC):
+> Then on your phone (same Wi‑Fi as the PC):
 >
-> 1. Open `https://YOUR_PC_IP:8090` (example: `https://192.168.0.117:8090`).
-> 2. If the browser uses HTTP and fails, try `http://YOUR_PC_IP:8091` — it redirects to HTTPS.
+> 1. Open `https://YOUR_PC_IP:<your-port>` (example: `https://192.168.0.117:8090`).
+> 2. If the browser uses HTTP and fails, try `http://YOUR_PC_IP:<your-port + 1>` — example: port `8090` → try `http://…:8091` (redirects to HTTPS).
 > 3. Accept the certificate warning (Advanced → Proceed).
-> 4. Log in with default **Server IP `127.0.0.1`** (leave Advanced Server Settings as-is — the GUI reaches the API on the PC, not from the phone).
+> 4. Log in; leave **Advanced Server Settings → Server IP** as `**127.0.0.1`**.
+> 5. Set **Unit location → Auto** for GPS.
 >
-> **Windows firewall** — if the phone cannot open the map at all, run in Administrator PowerShell:
-> `.\scripts\dev\open_firewall.ps1`
+> **Windows firewall** — if the phone cannot open the map on the same Wi‑Fi, run in Administrator PowerShell: `.\scripts\dev\open_firewall.ps1`
+
+---
+
+## Using the application
+
+After you complete the [Quickstart](#quickstart-local-python), see **[docs/full-GUI-user-guide.md](docs/full-GUI-user-guide.md)** for a screen-by-screen guide to the NiceGUI map and Streamlit dashboard (login, map, settings, roles, and screenshots).
 
 ---
 
@@ -189,7 +191,7 @@ Full microservices stack (API + Redis + worker):
 docker compose up -d --build
 ```
 
-Detailed runbook: [docs/runbooks/compose.md](docs/runbooks/compose.md)
+Detailed runbook: [docs/compose.md](docs/compose.md)
 
 ### Async POI refresh pipeline
 

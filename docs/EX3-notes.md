@@ -2,16 +2,18 @@
 
 ## Services (monorepo)
 
-| Service | Role | Entry |
-|---------|------|-------|
-| `backend` (FastAPI) | POI API, auth, digest, health | `python -m uvicorn backend.main:app --reload` |
-| SQLite via SQLModel | Persistence (`data/database/`) | auto on API start |
-| `frontend/nicegui/main.py` | Operations map UI | `python -m frontend.nicegui.main` |
-| `frontend/streamlit/app.py` | Operator UI | `streamlit run frontend/streamlit/app.py` |
-| `worker` | Redis queue consumer → refresh priorities | `python -m worker.main` |
-| `scripts/refresh.py` | Async orchestrator (enqueue + idempotency) | `python -m scripts.refresh --run-id local` |
 
-See also: [docs/runbooks/compose.md](runbooks/compose.md)
+| Service                     | Role                                       | Entry                                         |
+| --------------------------- | ------------------------------------------ | --------------------------------------------- |
+| `backend` (FastAPI)         | POI API, auth, digest, health              | `python -m uvicorn backend.main:app --reload` |
+| SQLite via SQLModel         | Persistence (`data/database/`)             | auto on API start                             |
+| `frontend/nicegui/main.py`  | Operations map UI                          | `python -m frontend.nicegui.main`             |
+| `frontend/streamlit/app.py` | Operator UI                                | `streamlit run frontend/streamlit/app.py`     |
+| `worker`                    | Redis queue consumer → refresh priorities  | `python -m worker.main`                       |
+| `scripts/refresh.py`        | Async orchestrator (enqueue + idempotency) | `python -m scripts.refresh --run-id local`    |
+
+
+See also: [docs/compose.md](compose.md)
 
 ## Orchestration
 
@@ -66,11 +68,14 @@ Automated coverage: `backend/test_refresh.py` includes `pytest.mark.anyio` orche
 
 Default demo users (seeded on startup):
 
-| User | Password | Role |
-|------|----------|------|
+
+| User  | Password  | Role  |
+| ----- | --------- | ----- |
 | admin | admin1234 | admin |
+
 
 ## Enhancement
 
 - **Searchable catalog filters** on `GET /pois/` (`poi_type`, `description_contains`).
 - **Weekly digest** at `GET /pois/digest/weekly` (SQL aggregation for last 7 days).
+
