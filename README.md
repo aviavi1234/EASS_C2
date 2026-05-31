@@ -58,25 +58,43 @@ compose.yaml             Local API + Redis + worker stack
 
 Run from the **project root**. Do steps **1 → 2 → 3 → 4** in order; use a **new terminal** for each running service.
 
+Use the venv Python directly — no shell activation script needed (avoids PowerShell execution-policy errors on Windows):
+
+| OS | Command prefix |
+| --- | --- |
+| Windows | `venv\Scripts\python.exe -m` |
+| Linux / macOS | `venv/bin/python -m` |
+
+The examples below use the venv Python from the table above.
+
 ### 1. Install dependencies (setup)
 
+**Python 3.10+** (tested through 3.14).
+
 ```bash
+# Windows
 python -m venv venv
 
-# Windows (PowerShell)
-.\venv\Scripts\Activate.ps1
+# Linux / macOS
+python3 -m venv venv
+```
+
+```bash
+# Windows
+venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements/dev.txt
 
 # Linux / macOS
-source venv/bin/activate
-
-pip install -r requirements.txt
-pip install -r requirements/dev.txt   # for tests
+venv/bin/python -m pip install -r requirements.txt -r requirements/dev.txt
 ```
 
 ### 2. EX1 — Run the backend (terminal 1)
 
 ```bash
-python -m uvicorn backend.main:app --reload
+# Windows
+venv\Scripts\python.exe -m uvicorn backend.main:app --reload
+
+# Linux / macOS
+venv/bin/python -m uvicorn backend.main:app --reload
 ```
 
 - API: [http://127.0.0.1:8000](http://127.0.0.1:8000)
@@ -101,7 +119,11 @@ On first login you must choose a new username and password (map GUI) or connect 
 ### 3. EX2 — Run the Streamlit dashboard (terminal 2, optional)
 
 ```bash
-python -m streamlit run frontend/streamlit/app.py
+# Windows
+venv\Scripts\python.exe -m streamlit run frontend/streamlit/app.py
+
+# Linux / macOS
+venv/bin/python -m streamlit run frontend/streamlit/app.py
 ```
 
 Opens at [http://127.0.0.1:8501](http://127.0.0.1:8501). In the sidebar, connect to the API with **admin** / **admin1234** on a new database (see above).
@@ -111,39 +133,55 @@ Table view: list POIs, create entries, filter, export CSV/JSON.
 ### 4. EX3 — Run the map GUI (terminal 3)
 
 ```bash
-python -m frontend.nicegui.main
+# Windows
+venv\Scripts\python.exe -m frontend.nicegui.main
+
+# Linux / macOS
+venv/bin/python -m frontend.nicegui.main
 ```
 
-Opens at [http://127.0.0.1:8081](http://127.0.0.1:8081) (default port — no `--port` needed). Primary operations map from the EX3 deliverable (NiceGUI + Leaflet).
+Opens at [http://127.0.0.1:8081](http://127.0.0.1:8081).
 
-> ### ***Possible issue that may arise:***
+> **Troubleshooting**
 >
-> **Different port** — if 8081 is already in use:
+> **Port 8081 already in use**
 >
 > ```bash
-> python -m frontend.nicegui.main --port 8090
+> # Windows
+> venv\Scripts\python.exe -m frontend.nicegui.main --port 8090
+>
+> # Linux / macOS
+> venv/bin/python -m frontend.nicegui.main --port 8090
 > ```
 >
-> Opens at [http://127.0.0.1:8090](http://127.0.0.1:8090)
+> Opens at [http://127.0.0.1:8090](http://127.0.0.1:8090).
 >
-> **GPS on your phone** — HTTPS required. Start the **backend** so your phone can reach it, then start the map GUI:
+> **GPS from your phone** (same Wi‑Fi — only `--https` on the map, not `--host` on the backend)
+>
+> The map GUI runs on your PC and talks to the API from **Python on the PC** (`httpx` → `127.0.0.1:8000`). Your phone only loads the UI and runs GPS in the browser. So the normal backend command from step 2 is enough; **`--https` on the map** is what unlocks GPS on the phone (browsers require a secure context off localhost).
 >
 > ```bash
-> # Terminal 1 — MUST use --host 0.0.0.0 (default 127.0.0.1 blocks phones)
-> python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+> # Terminal 1 — same as step 2 (no --host needed)
+> # Windows
+> venv\Scripts\python.exe -m uvicorn backend.main:app --reload
+> # Linux / macOS
+> venv/bin/python -m uvicorn backend.main:app --reload
 >
-> # Terminal 2
-> python -m frontend.nicegui.main --https --port 8090
+> # Terminal 2 — HTTPS map (listens on all interfaces by default)
+> # Windows
+> venv\Scripts\python.exe -m frontend.nicegui.main --https --port 8090
+> # Linux / macOS
+> venv/bin/python -m frontend.nicegui.main --https --port 8090
 > ```
 >
 > On your phone (same Wi‑Fi as the PC):
 >
-> 1. Try `**https://YOUR_PC_IP:8090**` (example: `https://192.168.0.117:8090`) — type `**https://**` yourself.
-> 2. If the browser picks HTTP and shows *“This page isn’t working”*, open `**http://YOUR_PC_IP:8091*`* instead — it redirects to HTTPS.
+> 1. Open `https://YOUR_PC_IP:8090` (example: `https://192.168.0.117:8090`).
+> 2. If the browser uses HTTP and fails, try `http://YOUR_PC_IP:8091` — it redirects to HTTPS.
 > 3. Accept the certificate warning (Advanced → Proceed).
-> 4. Login → **Advanced Server Settings** → API IP = your PC IP (e.g. `192.168.0.117`), port `8000`.
+> 4. Log in with default **Server IP `127.0.0.1`** (leave Advanced Server Settings as-is — the GUI reaches the API on the PC, not from the phone).
 >
-> **Windows firewall:** if the phone still cannot connect, run in **Administrator** PowerShell:
+> **Windows firewall** — if the phone cannot open the map at all, run in Administrator PowerShell:
 > `.\scripts\dev\open_firewall.ps1`
 
 ---
@@ -162,7 +200,11 @@ Detailed runbook: [docs/runbooks/compose.md](docs/runbooks/compose.md)
 
 ```bash
 # After POIs exist and Compose is running:
-python -m scripts.refresh --run-id local --concurrency 5
+# Windows
+venv\Scripts\python.exe -m scripts.refresh --run-id local --concurrency 5
+
+# Linux / macOS
+venv/bin/python -m scripts.refresh --run-id local --concurrency 5
 
 # Watch the worker process jobs:
 docker compose logs -f worker
@@ -174,9 +216,13 @@ Flow: `scripts/refresh` → Redis queue → `worker` → `POST /pois/{id}/refres
 
 ```bash
 # API must be running (Compose or uvicorn)
-python -m scripts.demo
-# or: python -m app.demo
-# or: bash scripts/demo.sh
+# Windows
+venv\Scripts\python.exe -m scripts.demo
+# or: venv\Scripts\python.exe -m app.demo
+
+# Linux / macOS
+venv/bin/python -m scripts.demo
+# or: venv/bin/python -m app.demo
 ```
 
 ---
@@ -184,7 +230,11 @@ python -m scripts.demo
 ## Initialize database manually (optional)
 
 ```bash
-python -m scripts.init.seed
+# Windows
+venv\Scripts\python.exe -m scripts.init.seed
+
+# Linux / macOS
+venv/bin/python -m scripts.init.seed
 ```
 
 Default admin: `admin` / `admin1234` (forced password change on first login).
@@ -194,11 +244,14 @@ Default admin: `admin` / `admin1234` (forced password change on first login).
 ## Testing
 
 ```bash
-pip install -r requirements/dev.txt
-python -m pytest backend frontend -svv
+# Windows
+venv\Scripts\python.exe -m pytest backend frontend -svv
+
+# Linux / macOS
+venv/bin/python -m pytest backend frontend -svv
 ```
 
-Coverage includes authentication, RBAC, POI/unit CRUD, POI types, icons, database seeding, client-side settings helpers, and async refresh (`pytest.mark.anyio`). **63 tests** total.
+Coverage includes authentication, RBAC, POI/unit CRUD, POI types, icons, database seeding, client-side settings helpers, and async refresh (`pytest.mark.anyio`). **64 tests** total.
 
 ---
 

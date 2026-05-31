@@ -16,6 +16,8 @@ import socket
 from datetime import datetime, timezone
 
 import httpx
+
+import frontend.nicegui._compat  # noqa: F401  — patch vbuild before NiceGUI import (Py 3.14)
 from nicegui import app, events, ui
 
 
@@ -1821,12 +1823,10 @@ def main() -> None:
             print("  Accept the certificate warning (Advanced -> Proceed).")
             if lan_ip:
                 print(
-                    f"  Backend must listen on all interfaces: "
-                    f"python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+                    "  Backend: normal uvicorn on this PC is enough (API calls run server-side)."
                 )
                 print(
-                    f"  Login from phone: API Server IP = {lan_ip} "
-                    "(Advanced Server Settings), not 127.0.0.1."
+                    "  Login from phone: keep Server IP 127.0.0.1 in Advanced Server Settings."
                 )
 
     ui.run(**run_kwargs)
