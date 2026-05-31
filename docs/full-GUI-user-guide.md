@@ -2,8 +2,6 @@
 
 Screen-by-screen guide to the C2 frontends. Start the backend and UI first.
 
-Screenshots are in `[docs/images/](images/)`.
-
 ---
 
 ## Overview
