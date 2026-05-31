@@ -22,7 +22,7 @@ from nicegui import app, events, ui
 
 
 
-from frontend.shared.api_client import DEFAULT_API_BASE, C2Client
+from frontend.shared.api_client import DEFAULT_API_BASE, C2Client, default_api_host_port
 from frontend.shared.settings import DEFAULT_ACTIVITY_TIERS, format_datetime, resolve_activity_color
 
 FALLBACK_POI_TYPE_CODES = ["unknowns", "infentry", "tank"]
@@ -287,8 +287,9 @@ def login_page() -> None:
                 ui.label("Command & Control").classes("text-2xl font-bold text-white tracking-wide")
                 ui.label("Sign in to open the operations map").classes("text-sm text-grey-5")
 
-            saved_ip = app.storage.user.get("c2_server_ip", "127.0.0.1")
-            saved_port = app.storage.user.get("c2_server_port", "8000")
+            default_host, default_port = default_api_host_port()
+            saved_ip = app.storage.user.get("c2_server_ip", default_host)
+            saved_port = app.storage.user.get("c2_server_port", default_port)
 
             username = ui.input("Username").classes("w-full").props("outlined autocomplete=off")
             password = ui.input("Password", password=True).classes(
@@ -365,8 +366,8 @@ def login_page() -> None:
                 setup_save_btn.on_click(do_setup)
 
             def do_login() -> None:
-                ip = (server_ip.value or "127.0.0.1").strip()
-                port = (server_port.value or "8000").strip()
+                ip = (server_ip.value or default_host).strip()
+                port = (server_port.value or default_port).strip()
 
                 app.storage.user["c2_server_ip"] = ip
                 app.storage.user["c2_server_port"] = port

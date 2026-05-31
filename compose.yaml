@@ -33,3 +33,35 @@ services:
     depends_on:
       - api
       - redis
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    command:
+      - streamlit
+      - run
+      - frontend/streamlit/app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.headless=true
+      - --browser.gatherUsageStats=false
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://api:8000
+    depends_on:
+      - api
+
+  nicegui:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    command: python -m frontend.nicegui.main --port 8081
+    ports:
+      - "8081:8081"
+    environment:
+      - API_BASE_URL=http://api:8000
+      - C2_GUI_PORT=8081
+    depends_on:
+      - api

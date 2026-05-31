@@ -22,7 +22,6 @@ dependencies = [
 ]
 
 [project.scripts]
-c2-demo = "scripts.demo:main"
 c2-gui = "frontend.nicegui.main:main"
 
 [project.optional-dependencies]
@@ -36,7 +35,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["backend", "frontend", "scripts", "worker", "app"]
+packages = ["backend", "frontend", "scripts", "worker"]
 
 [tool.pytest.ini_options]
 testpaths = ["backend", "frontend"]

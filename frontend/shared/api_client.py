@@ -4,10 +4,23 @@ from __future__ import annotations
 
 import os
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
 DEFAULT_API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+
+
+def default_api_host_port() -> tuple[str, str]:
+    parsed = urlparse(DEFAULT_API_BASE)
+    host = parsed.hostname or "127.0.0.1"
+    if parsed.port is not None:
+        port = str(parsed.port)
+    elif parsed.scheme == "https":
+        port = "443"
+    else:
+        port = "8000"
+    return host, port
 
 
 class C2Client:

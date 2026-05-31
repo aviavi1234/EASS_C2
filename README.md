@@ -14,7 +14,7 @@ This repository is a **computer-science course project** that follows an assignm
 | **EX3**  | Compose, Redis worker, JWT, async refresh | `compose.yaml`, `worker/`, `scripts/refresh.py`, `docs/EX3-notes.md`, `docs/compose.md` |
 
 
-NiceGUI map UI (`frontend/nicegui/`) and demo scripts (`scripts/demo.py`, `app/demo.py`) are EX3 enhancements.
+NiceGUI map UI (`frontend/nicegui/`) is an EX3 enhancement.
 
 ---
 
@@ -30,8 +30,6 @@ frontend/
 scripts/
   init/                  Database seed and local HTTPS cert generation
   refresh.py             Async refresh orchestrator (EX3)
-  demo.py                End-to-end demo for graders
-  demo.sh                Shell wrapper for demo
 deploy/                  Dockerfile (used by compose)
 docs/
   full-GUI-user-guide.md Screen-by-screen UI guide (with screenshots)
@@ -40,7 +38,7 @@ docs/
   images/                UI screenshots
 data/                    Runtime data (SQLite DB, icons, certs) — not committed
 requirements/            Split dependency files by component
-compose.yaml             Local API + Redis + worker stack
+compose.yaml             Full stack: API, Streamlit, NiceGUI, Redis, worker
 ```
 
 ## Architecture & Services
@@ -57,6 +55,8 @@ compose.yaml             Local API + Redis + worker stack
 ---
 
 ## Quickstart (local Python)
+
+> **Prefer Docker?** See [EX3 – Docker Compose stack](#ex3--docker-compose-stack) to run the API, Streamlit, NiceGUI map, Redis, and worker together with `docker compose up -d --build`.
 
 Run from the **project root**. Do steps **1 → 2 → 3 → 4** in order; use a **new terminal** for each running service.
 
@@ -179,24 +179,95 @@ Opens at [http://127.0.0.1:8081](http://127.0.0.1:8081). In **Settings → Unit 
 
 ## Using the application
 
-After you complete the [Quickstart](#quickstart-local-python), see **[docs/full-GUI-user-guide.md](docs/full-GUI-user-guide.md)** for a screen-by-screen guide to the NiceGUI map and Streamlit dashboard (login, map, settings, roles, and screenshots).
+After you complete the [Quickstart (local Python)](#quickstart-local-python) or [Docker Compose stack](#ex3--docker-compose-stack), see **[docs/full-GUI-user-guide.md](docs/full-GUI-user-guide.md)** for a screen-by-screen guide to the NiceGUI map and Streamlit dashboard (login, map, settings, roles, and screenshots).
 
 ---
 
 ## EX3 – Docker Compose stack
 
-Full microservices stack (API + Redis + worker):
+Run the **entire application** in containers — API, both frontends, Redis, and the refresh worker — with one command. Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose plugin).
+
+From the repository root:
 
 ```bash
 docker compose up -d --build
 ```
 
-Detailed runbook: [docs/compose.md](docs/compose.md)
+### Services
+
+
+| Service     | Role                                      | URL                                              |
+| ----------- | ----------------------------------------- | ------------------------------------------------ |
+| `api`       | FastAPI backend + SQLite                  | [http://127.0.0.1:8000](http://127.0.0.1:8000)   |
+| `streamlit` | EX2 table dashboard                       | [http://127.0.0.1:8501](http://127.0.0.1:8501)   |
+| `nicegui`   | EX3 operations map                        | [http://127.0.0.1:8081](http://127.0.0.1:8081)   |
+| `redis`     | Refresh job queue                         | `localhost:6379`                                 |
+| `worker`    | Async POI refresh (background)            | —                                                |
+
+
+Persistent data (database, uploaded icons) is stored in `./data` via a volume mount.
+
+### First login
+
+On a **new database**, sign in with:
+
+
+| Field    | Value       |
+| -------- | ----------- |
+| Username | `admin`     |
+| Password | `admin1234` |
+
+
+- **Streamlit** — use the sidebar **Connect** button (API URL is pre-filled).
+- **NiceGUI** — log in on the home page (Advanced Server Settings default to the internal API host; no change needed).
+
+Frontends reach the API at `http://api:8000` inside the Compose network.
+
+### Verify the stack
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Expected: `{"status":"ok"}`
+
+Stop everything:
+
+```bash
+docker compose down
+```
+
+Detailed runbook (rate limits, refresh pipeline, troubleshooting): [docs/compose.md](docs/compose.md)
 
 ### Async POI refresh pipeline
 
+EX3 adds a **background job queue** that recalculates POI **priority scores** in bulk without blocking the API or any UI. “Refresh” does not move POIs or fetch external data — it updates `priority_score` and `last_refreshed_at` in SQLite based on POI type (e.g. Tank → 80, Infantry → 60, Unknown → 20).
+
+**Flow:**
+
+```text
+scripts/refresh  ──enqueue──►  Redis (refresh:queue)  ◄──BLPOP──  worker
+                                                                    │
+                                                                    ▼
+                                                         POST /pois/{id}/refresh
+                                                         (SERVICE_API_KEY)
+                                                                    │
+                                                                    ▼
+                                                               SQLite
+```
+
+| Component | Role |
+| --------- | ---- |
+| `scripts/refresh.py` | Orchestrator — logs in, lists all POI IDs, pushes one job per POI onto Redis |
+| `redis` | Holds the job queue and idempotency keys |
+| `worker` | Pulls jobs, calls the refresh API endpoint, retries on failure |
+| `POST /pois/{id}/refresh` | Service-key-only route; recomputes priority and timestamps the POI |
+
+**Idempotency:** Each run uses a `--run-id` (e.g. `local`). Redis keys like `refresh:run:local:poi:7` ensure the same POI is not refreshed twice in the same run. Re-running with a **new** `run-id` refreshes everything again.
+
+**Run it** (Compose must be up with POIs in the database):
+
 ```bash
-# After POIs exist and Compose is running:
 # Windows
 venv\Scripts\python.exe -m scripts.refresh --run-id local --concurrency 5
 
@@ -207,20 +278,7 @@ venv/bin/python -m scripts.refresh --run-id local --concurrency 5
 docker compose logs -f worker
 ```
 
-Flow: `scripts/refresh` → Redis queue → `worker` → `POST /pois/{id}/refresh` (service key).
-
-### Demo script (graders)
-
-```bash
-# API must be running (Compose or uvicorn)
-# Windows
-venv\Scripts\python.exe -m scripts.demo
-# or: venv\Scripts\python.exe -m app.demo
-
-# Linux / macOS
-venv/bin/python -m scripts.demo
-# or: venv/bin/python -m app.demo
-```
+The orchestrator runs on your host (or in a venv); it needs reachability to Redis (`localhost:6379` when using Compose) and the API (`http://127.0.0.1:8000`). More detail: [docs/EX3-notes.md](docs/EX3-notes.md), [docs/compose.md](docs/compose.md).
 
 ---
 
@@ -248,7 +306,7 @@ venv\Scripts\python.exe -m pytest backend frontend -svv
 venv/bin/python -m pytest backend frontend -svv
 ```
 
-Coverage includes authentication, RBAC, POI/unit CRUD, POI types, icons, database seeding, client-side settings helpers, and async refresh (`pytest.mark.anyio`). **64 tests** total.
+Coverage includes authentication, RBAC, POI/unit CRUD, POI types, icons, database seeding, client-side settings helpers, and async refresh (`pytest.mark.anyio`). **63 tests** total.
 
 ---
 

@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Docker Desktop (or Docker Engine + Compose plugin)
-- Python 3.10+ for local pytest (optional)
+- Python 3.14 for local pytest (optional)
 
 ## Launch the stack
 
@@ -18,8 +18,12 @@ This starts:
 | Service | Role | URL / port |
 |---------|------|------------|
 | `api` | FastAPI backend + SQLite | http://127.0.0.1:8000 |
+| `streamlit` | EX2 POI dashboard | http://127.0.0.1:8501 |
+| `nicegui` | EX3 operations map | http://127.0.0.1:8081 |
 | `redis` | Refresh job queue | localhost:6379 |
 | `worker` | Consumes queue → `POST /pois/{id}/refresh` | (background) |
+
+Frontends talk to the API at `http://api:8000` inside the Compose network. Log in with seeded credentials (`admin` / `admin1234`) on first use.
 
 Persistent data is mounted at `./data` (database, uploaded icons).
 
@@ -80,7 +84,6 @@ python -m pytest backend frontend -svv
 ```
 
 Async refresh orchestrator coverage includes `backend/test_refresh.py` (`pytest.mark.anyio`).
-Demo script auth regression: `backend/test_demo.py`.
 
 ## CI (GitHub Actions)
 
