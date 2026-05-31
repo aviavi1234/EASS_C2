@@ -60,10 +60,12 @@ Run from the **project root**. Do steps **1 → 2 → 3 → 4** in order; use a 
 
 Use the venv Python directly — no shell activation script needed (avoids PowerShell execution-policy errors on Windows):
 
-| OS | Command prefix |
-| --- | --- |
-| Windows | `venv\Scripts\python.exe -m` |
-| Linux / macOS | `venv/bin/python -m` |
+
+| OS            | Command prefix               |
+| ------------- | ---------------------------- |
+| Windows       | `venv\Scripts\python.exe -m` |
+| Linux / macOS | `venv/bin/python -m`         |
+
 
 The examples below use the venv Python from the table above.
 
@@ -158,16 +160,9 @@ Opens at [http://127.0.0.1:8081](http://127.0.0.1:8081).
 >
 > **GPS from your phone** (same Wi‑Fi — only `--https` on the map, not `--host` on the backend)
 >
-> The map GUI runs on your PC and talks to the API from **Python on the PC** (`httpx` → `127.0.0.1:8000`). Your phone only loads the UI and runs GPS in the browser. So the normal backend command from step 2 is enough; **`--https` on the map** is what unlocks GPS on the phone (browsers require a secure context off localhost).
+> The map GUI runs on your PC and talks to the API from **Python on the PC** (`httpx` → `127.0.0.1:8000`). Your phone only loads the UI and runs GPS in the browser. So the normal backend command from step 2 is enough; `**--https` on the map** is what unlocks GPS on the phone (browsers require a secure context off localhost).
 >
 > ```bash
-> # Terminal 1 — same as step 2 (no --host needed)
-> # Windows
-> venv\Scripts\python.exe -m uvicorn backend.main:app --reload
-> # Linux / macOS
-> venv/bin/python -m uvicorn backend.main:app --reload
->
-> # Terminal 2 — HTTPS map (listens on all interfaces by default)
 > # Windows
 > venv\Scripts\python.exe -m frontend.nicegui.main --https --port 8090
 > # Linux / macOS
